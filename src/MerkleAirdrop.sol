@@ -21,6 +21,7 @@ contract MerkleAirDrop {
         i_merkleRoot = _merkleRoot;
         i_airDropToken = airDropToken;
     }
+    
 
     function claim(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof) external {
         if (s_claimed[_claimer] == true) {
