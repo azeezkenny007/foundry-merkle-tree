@@ -6,7 +6,6 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 
 contract MerkleAirDrop {
     using SafeERC20 for IERC20;
-
     error MerkleAirdrop__InvalidProof();
     error MerkleAirdrop__AlreadyClaimed();
 
