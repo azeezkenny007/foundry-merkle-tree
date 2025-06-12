@@ -14,8 +14,9 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 contract MerkleAirDrop {
     using SafeERC20 for IERC20;
     /// @custom:error Thrown when the provided Merkle proof is invalid.
+
     error MerkleAirdrop__InvalidProof();
-    
+
     /// @custom:error Thrown when an address tries to claim tokens more than once.
     error MerkleAirdrop__AlreadyClaimed();
 
@@ -42,7 +43,6 @@ contract MerkleAirDrop {
         i_merkleRoot = _merkleRoot;
         i_airDropToken = airDropToken;
     }
-    
 
     /**
      * @notice Allows a whitelisted user to claim their airdropped tokens.
