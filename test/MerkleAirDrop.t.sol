@@ -4,11 +4,13 @@ pragma solidity ^0.8.18;
 import {Test, console} from "forge-std/Test.sol";
 import {MerkleAirDrop} from "../src/MerkleAirDrop.sol";
 import {BagelToken} from "../src/BagelToken.sol";
+import {ZkSyncChainChecker} from "lib/foundry-devops/src/ZkSyncChainChecker.sol";
+import {DeployMerkleAirDrop} from "../script/DeployMerkleAirdrop.s.sol";
 
-contract MerkleAirDropTest is Test {
-    BagelToken public bagelToken;
-    MerkleAirDrop public merkleAirDrop;
-    bytes32 public constant MERKLE_ROOT = 0xaa5d581231e596618465a56aa0f5870ba6e20785fe436d5bfb82b08662ccc7c4;
+contract MerkleAirDropTest is ZkSyncChainChecker, Test {
+    BagelToken bagelToken;
+    MerkleAirDrop merkleAirDrop;
+    bytes32 public MERKLE_ROOT = 0xaa5d581231e596618465a56aa0f5870ba6e20785fe436d5bfb82b08662ccc7c4;
     address user;
     uint256 userPrivateKey;
     uint256 public constant AMOUNT_TO_CLAIM = 25 * 1e18;
@@ -18,11 +20,17 @@ contract MerkleAirDropTest is Test {
     bytes32[] public PROOF = [proofOne, proofTwo];
 
     function setUp() external {
+        if(!isZkSyncChain()){
+          DeployMerkleAirDrop deployMerkleAirdrop = new DeployMerkleAirDrop();
+          (bagelToken, merkleAirDrop) = deployMerkleAirdrop.run();
+        }
+        else{
         bagelToken = new BagelToken();
         merkleAirDrop = new MerkleAirDrop(MERKLE_ROOT, bagelToken);
         bagelToken.mint(bagelToken.owner(), AMOUNT_TO_SEND);
         bagelToken.transfer(address(merkleAirDrop), AMOUNT_TO_SEND);
         (user, userPrivateKey) = makeAddrAndKey("user");
+        }  
     }
 
     function testUserCanClaim() public {
