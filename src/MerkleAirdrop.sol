@@ -54,7 +54,7 @@ contract MerkleAirDrop {
         if (s_claimed[_claimer] == true) {
             revert MerkleAirdrop__AlreadyClaimed();
         }
-        
+
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_claimer, _amount))));
         if (!MerkleProof.verify(_merkleProof, i_merkleRoot, leaf)) {
             revert MerkleAirdrop__InvalidProof();
