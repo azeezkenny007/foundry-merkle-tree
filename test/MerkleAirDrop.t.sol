@@ -12,6 +12,7 @@ contract MerkleAirDropTest is ZkSyncChainChecker, Test {
     MerkleAirDrop merkleAirDrop;
     bytes32 public MERKLE_ROOT = 0xaa5d581231e596618465a56aa0f5870ba6e20785fe436d5bfb82b08662ccc7c4;
     address user;
+    address gasPayer;
     uint256 userPrivateKey;
     uint256 public constant AMOUNT_TO_CLAIM = 25 * 1e18;
     uint256 public constant AMOUNT_TO_SEND = AMOUNT_TO_CLAIM * 4;
@@ -30,12 +31,14 @@ contract MerkleAirDropTest is ZkSyncChainChecker, Test {
         bagelToken.mint(bagelToken.owner(), AMOUNT_TO_SEND);
         bagelToken.transfer(address(merkleAirDrop), AMOUNT_TO_SEND);
         (user, userPrivateKey) = makeAddrAndKey("user");
+        (gasPayer) = makeAddr("gasPayer");
         }  
     }
 
     function testUserCanClaim() public {
         uint256 startingBalance = bagelToken.balanceOf(user);
         vm.prank(user);
+        console.log("User:", user);
         merkleAirDrop.claim(user, AMOUNT_TO_CLAIM, PROOF);
         uint256 endingBalance = bagelToken.balanceOf(user);
         console.log("Ending Balance", endingBalance);
