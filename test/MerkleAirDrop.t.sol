@@ -21,17 +21,15 @@ contract MerkleAirDropTest is ZkSyncChainChecker, Test {
     bytes32[] public PROOF = [proofOne, proofTwo];
 
     function setUp() external {
-        if(!isZkSyncChain()){
-          DeployMerkleAirDrop deployMerkleAirdrop = new DeployMerkleAirDrop();
-          (bagelToken, merkleAirDrop) = deployMerkleAirdrop.run();
+        if (!isZkSyncChain()) {
+            DeployMerkleAirDrop deployMerkleAirdrop = new DeployMerkleAirDrop();
+            (bagelToken, merkleAirDrop) = deployMerkleAirdrop.run();
+        } else {
+            bagelToken = new BagelToken();
+            merkleAirDrop = new MerkleAirDrop(MERKLE_ROOT, bagelToken);
+            bagelToken.mint(bagelToken.owner(), AMOUNT_TO_SEND);
+            bagelToken.transfer(address(merkleAirDrop), AMOUNT_TO_SEND);
         }
-        else{
-        bagelToken = new BagelToken();
-        merkleAirDrop = new MerkleAirDrop(MERKLE_ROOT, bagelToken);
-        bagelToken.mint(bagelToken.owner(), AMOUNT_TO_SEND);
-        bagelToken.transfer(address(merkleAirDrop), AMOUNT_TO_SEND);
-            
-        } 
         (user, userPrivateKey) = makeAddrAndKey("user");
         (gasPayer) = makeAddr("gasPayer");
         console.log("User:", user);
