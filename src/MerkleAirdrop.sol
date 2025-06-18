@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * @title MerkleAirdrop
@@ -14,7 +15,7 @@ import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
  * @dev This contract implements EIP-712 for signature verification and uses Merkle proofs
  * for efficient whitelist verification without storing all addresses on-chain.
  */
-contract MerkleAirDrop is EIP712 {
+contract MerkleAirDrop is EIP712  {
     using SafeERC20 for IERC20;
 
     /* ========== CONSTANTS ========== */
@@ -36,6 +37,15 @@ contract MerkleAirDrop is EIP712 {
         address claimer;
         uint256 amount;
     }
+
+    struct ClaimParams {
+    address claimer;
+    uint256 amount;
+    bytes32[] merkleProof;
+    uint8 v;
+    bytes32 r;
+    bytes32 s;
+}
 
     /* ========== ERRORS ========== */
 
@@ -102,7 +112,7 @@ contract MerkleAirDrop is EIP712 {
     /* ========== MODIFIERS ========== */
 
     /**
-     * @notice Ensures that the given address has not already claimed the airdrop
+     * @notice Checks if the given address has not already claimed the airdrop
      * @param _claimer The address attempting to claim
      * @dev Reverts with MerkleAirdrop__AlreadyClaimed if the address has already claimed
      */
@@ -110,57 +120,68 @@ contract MerkleAirDrop is EIP712 {
         if (s_claimed[_claimer] == true) {
             revert MerkleAirdrop__AlreadyClaimed();
         }
+        _;
     }
 
     /**
-     * @notice Ensures that the provided EIP-712 signature is valid for the given claimer and message hash
+     * @notice Checks that the provided EIP-712 signature is valid for the given claimer and message hash
      * @param _claimer The address of the claimer (expected signer)
-     * @param _messageHash The EIP-712 message hash to verify
+     * @param _amount The amount of tokens being claimed
      * @param v The v component of the signature
      * @param r The r component of the signature
      * @param s The s component of the signature
      * @dev Reverts with MerkleAirdrop__InvalidSignature if the signature is invalid
      */
-    modifier onlyValidSignature(address _claimer, bytes32 _messageHash, uint8 v, bytes32 r, bytes32 s) {
-        if (!_isValidSignature(_claimer, _messageHash, v, r, s)) {
+    modifier validSignature(address _claimer, uint256 _amount, uint8 v, bytes32 r, bytes32 s) {
+        if (!_isValidSignature(_claimer, getMessageHash(_claimer, _amount), v, r, s)) {
             revert MerkleAirdrop__InvalidSignature();
         }
+        _;
     }
 
     /**
-     * @notice Ensures that the provided Merkle proof is valid for the given claimer and amount
+     * @notice Checks that the provided Merkle proof is valid for the given claimer and amount
      * @param _claimer The address attempting to claim
      * @param _amount The amount of tokens being claimed
      * @param _merkleProof The Merkle proof to verify inclusion in the airdrop
      * @dev Reverts with MerkleAirdrop__InvalidProof if the proof is invalid
      */
-    modifier onlyValidMerkleProof(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof) {
+    modifier validMerkleProof(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof) {
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_claimer, _amount))));
         if (!MerkleProof.verify(_merkleProof, i_merkleRoot, leaf)) {
             revert MerkleAirdrop__InvalidProof();
         }
+        _;
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     /**
      * @notice Allows a whitelisted user to claim their airdropped tokens
-     * @param _claimer The address attempting to claim
-     * @param _amount The amount of tokens to claim
-     * @param _merkleProof The Merkle proof required to verify the claimer's inclusion in the whitelist
-     * @param v The v component of the EIP-712 signature
-     * @param r The r component of the EIP-712 signature
-     * @param s The s component of the EIP-712 signature
+     * @param _claimParams The parameters for the claim:
+     * @custom:param claimer The address attempting to claim
+     * @custom:param amount The amount of tokens to claim
+     * @custom:param merkleProof The Merkle proof required to verify the claimer's inclusion in the whitelist
+     * @custom:param v The v component of the EIP-712 signature
+     * @custom:param r The r component of the EIP-712 signature
+     * @custom:param s The s component of the EIP-712 signature
      * @dev This function performs the following checks:
      * 1. Verifies the address hasn't already claimed
      * 2. Validates the EIP-712 signature
      * 3. Verifies the Merkle proof
      * 4. Transfers tokens to the claimer
      */
-    function claim(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof, uint8 v, bytes32 r, bytes32 s) external onlyUnclaimed(_claimer) onlyValidSignature(_claimer, getMessage(_claimer, _amount), v, r, s) onlyValidMerkleProof(_claimer, _amount, _merkleProof) {
-        s_claimed[_claimer] = true;
-        emit Claimed(_claimer, _amount);
-        i_airDropToken.safeTransfer(_claimer, _amount);
+    function claim(
+        ClaimParams calldata _claimParams
+    )
+        external
+        onlyUnclaimed(_claimParams.claimer)
+        validSignature(_claimParams.claimer, _claimParams.amount, _claimParams.v, _claimParams.r, _claimParams.s)
+        validMerkleProof(_claimParams.claimer, _claimParams.amount, _claimParams.merkleProof)
+    {
+        s_claimed[_claimParams.claimer] = true;
+        emit Claimed(_claimParams.claimer, _claimParams.amount);
+        i_airDropToken.safeTransfer(_claimParams.claimer, _claimParams.amount);
     }
 
     /* ========== PUBLIC FUNCTIONS ========== */
@@ -172,7 +193,7 @@ contract MerkleAirDrop is EIP712 {
      * @return The EIP-712 message hash
      * @dev This function creates the message hash that should be signed by the authorized signer
      */
-    function getMessage(address _claimer, uint256 _amount) public view returns (bytes32) {
+    function getMessageHash(address _claimer, uint256 _amount) public view returns (bytes32) {
         return _hashTypedDataV4(
             keccak256(abi.encode(MESSAGE_TYPEHASH, AirdropClaim({claimer: _claimer, amount: _amount})))
         );
@@ -210,22 +231,19 @@ contract MerkleAirDrop is EIP712 {
     /**
      * @notice Validates an EIP-712 signature
      * @param _claimer The address of the claimer
-     * @param _messageHash The message hash to verify
+     * @param _digest The digest to verify
      * @param v The v component of the signature
      * @param r The r component of the signature
      * @param s The s component of the signature
      * @return True if the signature is valid, false otherwise
      * @dev This function should be overridden to implement the actual signature verification logic
      */
-    function _isValidSignature(address _claimer, bytes32 _messageHash, uint8 v, bytes32 r, bytes32 s)
+    function _isValidSignature(address _claimer, bytes32 _digest, uint8 v, bytes32 r, bytes32 s)
         internal
-        view
-        virtual
+        pure
         returns (bool)
     {
-        // TODO: Implement signature verification logic
-        // This should verify that the signature was created by an authorized signer
-        // and that it corresponds to the provided message hash
-        return true; // Placeholder implementation
+        (address actualSigner,,)=ECDSA.tryRecover(_digest,v,r,s);
+        return actualSigner == _claimer;
     }
 }

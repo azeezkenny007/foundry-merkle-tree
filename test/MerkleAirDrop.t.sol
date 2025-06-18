@@ -38,9 +38,26 @@ contract MerkleAirDropTest is ZkSyncChainChecker, Test {
 
     function testUserCanClaim() public {
         uint256 startingBalance = bagelToken.balanceOf(user);
+        bytes32 digest = merkleAirDrop.getMessageHash(user, AMOUNT_TO_CLAIM);  
+
+        
+        // Generate signature for the claim as the user
         vm.prank(user);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         console.log("User:", user);
-        merkleAirDrop.claim(user, AMOUNT_TO_CLAIM, PROOF);
+
+       
+       // Call claim as gasPayer on behalf of user
+       vm.prank(gasPayer);
+       merkleAirDrop.claim(MerkleAirDrop.ClaimParams({
+            claimer: user,
+            amount: AMOUNT_TO_CLAIM,
+            merkleProof: PROOF,
+            v: v,
+            r: r,
+            s: s
+        }));
+
         uint256 endingBalance = bagelToken.balanceOf(user);
         console.log("Ending Balance", endingBalance);
         assertEq(endingBalance, startingBalance + AMOUNT_TO_CLAIM);
