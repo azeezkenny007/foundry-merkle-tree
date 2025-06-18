@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import {Test, console} from "forge-std/Test.sol";
 import {MerkleAirDrop} from "../src/MerkleAirDrop.sol";
 import {BagelToken} from "../src/BagelToken.sol";
-import {ZkSyncChainChecker} from "lib/foundry-devops/src/ZkSyncChainChecker.sol";
+import {ZkSyncChainChecker} from "foundry-devops/src/ZkSyncChainChecker.sol";
 import {DeployMerkleAirDrop} from "../script/DeployMerkleAirdrop.s.sol";
 
 contract MerkleAirDropTest is ZkSyncChainChecker, Test {
@@ -42,7 +42,6 @@ contract MerkleAirDropTest is ZkSyncChainChecker, Test {
 
         
         // Generate signature for the claim as the user
-        vm.prank(user);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
         console.log("User:", user);
 

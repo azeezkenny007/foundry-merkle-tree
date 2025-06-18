@@ -1,2 +1,4 @@
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
 murky/=lib/murky/
+foundry-devops=lib/foundry-devops/
+
