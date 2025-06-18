@@ -99,6 +99,48 @@ contract MerkleAirDrop is EIP712 {
         i_airDropToken = airDropToken;
     }
 
+    /* ========== MODIFIERS ========== */
+
+    /**
+     * @notice Ensures that the given address has not already claimed the airdrop
+     * @param _claimer The address attempting to claim
+     * @dev Reverts with MerkleAirdrop__AlreadyClaimed if the address has already claimed
+     */
+    modifier onlyUnclaimed(address _claimer) {
+        if (s_claimed[_claimer] == true) {
+            revert MerkleAirdrop__AlreadyClaimed();
+        }
+    }
+
+    /**
+     * @notice Ensures that the provided EIP-712 signature is valid for the given claimer and message hash
+     * @param _claimer The address of the claimer (expected signer)
+     * @param _messageHash The EIP-712 message hash to verify
+     * @param v The v component of the signature
+     * @param r The r component of the signature
+     * @param s The s component of the signature
+     * @dev Reverts with MerkleAirdrop__InvalidSignature if the signature is invalid
+     */
+    modifier onlyValidSignature(address _claimer, bytes32 _messageHash, uint8 v, bytes32 r, bytes32 s) {
+        if (!_isValidSignature(_claimer, _messageHash, v, r, s)) {
+            revert MerkleAirdrop__InvalidSignature();
+        }
+    }
+
+    /**
+     * @notice Ensures that the provided Merkle proof is valid for the given claimer and amount
+     * @param _claimer The address attempting to claim
+     * @param _amount The amount of tokens being claimed
+     * @param _merkleProof The Merkle proof to verify inclusion in the airdrop
+     * @dev Reverts with MerkleAirdrop__InvalidProof if the proof is invalid
+     */
+    modifier onlyValidMerkleProof(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof) {
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_claimer, _amount))));
+        if (!MerkleProof.verify(_merkleProof, i_merkleRoot, leaf)) {
+            revert MerkleAirdrop__InvalidProof();
+        }
+    }
+
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     /**
@@ -115,22 +157,7 @@ contract MerkleAirDrop is EIP712 {
      * 3. Verifies the Merkle proof
      * 4. Transfers tokens to the claimer
      */
-    function claim(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof, uint8 v, bytes32 r, bytes32 s)
-        external
-    {
-        if (s_claimed[_claimer] == true) {
-            revert MerkleAirdrop__AlreadyClaimed();
-        }
-
-        if (!_isValidSignature(_claimer, getMessage(_claimer, _amount), v, r, s)) {
-            revert MerkleAirdrop__InvalidSignature();
-        }
-
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_claimer, _amount))));
-        if (!MerkleProof.verify(_merkleProof, i_merkleRoot, leaf)) {
-            revert MerkleAirdrop__InvalidProof();
-        }
-
+    function claim(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof, uint8 v, bytes32 r, bytes32 s) external onlyUnclaimed(_claimer) onlyValidSignature(_claimer, getMessage(_claimer, _amount), v, r, s) onlyValidMerkleProof(_claimer, _amount, _merkleProof) {
         s_claimed[_claimer] = true;
         emit Claimed(_claimer, _amount);
         i_airDropToken.safeTransfer(_claimer, _amount);
