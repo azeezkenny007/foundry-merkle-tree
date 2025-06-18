@@ -2,6 +2,36 @@
 
 pragma solidity ^0.8.24;
 
-contract Interactions{
-    
+import {Script} from "forge-std/Script.sol";
+import {MerkleAirDrop} from "../src/MerkleAirdrop.sol";
+import {BagelToken} from "../src/BagelToken.sol";
+import {DevOpsTools} from "foundry-devops/src/DevOpsTools.sol";
+
+contract Interactions {
+    address claimer = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+    uint256 amount = 25 * 1e18;
+    bytes32 PROOF_ONE = 0xaa5d581231e596618465a56aa0f5870ba6e20785fe436d5bfb82b08662ccc7c4;
+    bytes32 PROOF_TWO = 0xd1445c931158119b00449ffcac3c947d028c0c359c34a6646d95962b3b55c6ad;
+    bytes32[] PROOF = [PROOF_ONE, PROOF_TWO];
+
+    function run() external {
+        address mostRecentlyDeployedMerkleAirdrop =
+            DevOpsTools.get_most_recent_deployment("MerkleAirdrop", block.chainid);
+        claimAirdrop(mostRecentlyDeployedMerkleAirdrop);
+    }
+
+    function claimAirdrop(address _merkleAirdrop) public {
+        vm.startBroadcast();
+        MerkleAirDrop(_merkleAirdrop).claim(
+            MerkleAirDrop.ClaimParams({
+                claimer: claimer,
+                amount: amount,
+                merkleProof: PROOF,
+                v: 0,
+                r: 0,
+                s: 0
+            })
+        );
+        vm.stopBroadcast();
+    }
 }

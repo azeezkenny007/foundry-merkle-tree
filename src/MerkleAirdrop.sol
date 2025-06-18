@@ -15,7 +15,7 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  * @dev This contract implements EIP-712 for signature verification and uses Merkle proofs
  * for efficient whitelist verification without storing all addresses on-chain.
  */
-contract MerkleAirDrop is EIP712  {
+contract MerkleAirDrop is EIP712 {
     using SafeERC20 for IERC20;
 
     /* ========== CONSTANTS ========== */
@@ -39,13 +39,13 @@ contract MerkleAirDrop is EIP712  {
     }
 
     struct ClaimParams {
-    address claimer;
-    uint256 amount;
-    bytes32[] merkleProof;
-    uint8 v;
-    bytes32 r;
-    bytes32 s;
-}
+        address claimer;
+        uint256 amount;
+        bytes32[] merkleProof;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
 
     /* ========== ERRORS ========== */
 
@@ -171,9 +171,7 @@ contract MerkleAirDrop is EIP712  {
      * 3. Verifies the Merkle proof
      * 4. Transfers tokens to the claimer
      */
-    function claim(
-        ClaimParams calldata _claimParams
-    )
+    function claim(ClaimParams calldata _claimParams)
         external
         onlyUnclaimed(_claimParams.claimer)
         validSignature(_claimParams.claimer, _claimParams.amount, _claimParams.v, _claimParams.r, _claimParams.s)
@@ -243,7 +241,7 @@ contract MerkleAirDrop is EIP712  {
         pure
         returns (bool)
     {
-        (address actualSigner,,)=ECDSA.tryRecover(_digest,v,r,s);
+        (address actualSigner,,) = ECDSA.tryRecover(_digest, v, r, s);
         return actualSigner == _claimer;
     }
 }
