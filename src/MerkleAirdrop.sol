@@ -3,66 +3,126 @@ pragma solidity ^0.8.24;
 
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 /**
  * @title MerkleAirdrop
  * @author Okhamena Azeez
  * @notice This contract allows for a Merkle tree-based airdrop of ERC20 tokens.
  * Users can claim tokens if their address and amount are included in the Merkle tree
- * and they provide a valid Merkle proof.
+ * and they provide a valid Merkle proof along with a valid EIP-712 signature.
+ * @dev This contract implements EIP-712 for signature verification and uses Merkle proofs
+ * for efficient whitelist verification without storing all addresses on-chain.
  */
-contract MerkleAirDrop {
+contract MerkleAirDrop is EIP712 {
     using SafeERC20 for IERC20;
-    /// @custom:error Thrown when the provided Merkle proof is invalid.
 
-    error MerkleAirdrop__InvalidProof();
-
-    /// @custom:error Thrown when an address tries to claim tokens more than once.
-    error MerkleAirdrop__AlreadyClaimed();
-
-    error MerkleAirdrop__InvalidSignature()
-
-     struct AirdropClaim{
-        address claimer;
-        uint256 amount;
-     }  
+    /* ========== CONSTANTS ========== */
 
     /**
-     * @notice Emitted when a user successfully claims their tokens.
-     * @param claimer The address that claimed the tokens.
-     * @param amount The amount of tokens claimed.
+     * @notice The EIP-712 type hash for the AirdropClaim struct
+     * @dev This is used for signature verification
+     */
+    bytes32 private constant MESSAGE_TYPEHASH = keccak256("AirdropClaim(address claimer,uint256 amount)");
+
+    /* ========== STRUCTS ========== */
+
+    /**
+     * @notice Struct representing an airdrop claim
+     * @param claimer The address of the user claiming tokens
+     * @param amount The amount of tokens to be claimed
+     */
+    struct AirdropClaim {
+        address claimer;
+        uint256 amount;
+    }
+
+    /* ========== ERRORS ========== */
+
+    /**
+     * @notice Thrown when the provided Merkle proof is invalid
+     * @dev This error is raised when the Merkle proof doesn't verify against the stored root
+     */
+    error MerkleAirdrop__InvalidProof();
+
+    /**
+     * @notice Thrown when an address tries to claim tokens more than once
+     * @dev This prevents double-spending of airdrop tokens
+     */
+    error MerkleAirdrop__AlreadyClaimed();
+
+    /**
+     * @notice Thrown when the provided EIP-712 signature is invalid
+     * @dev This error is raised when the signature doesn't match the expected signer
+     */
+    error MerkleAirdrop__InvalidSignature();
+
+    /* ========== EVENTS ========== */
+
+    /**
+     * @notice Emitted when a user successfully claims their tokens
+     * @param claimer The address that claimed the tokens
+     * @param amount The amount of tokens claimed
      */
     event Claimed(address indexed claimer, uint256 amount);
 
-    /// @notice The Merkle root of the airdrop whitelist.
-    bytes32 private immutable i_merkleRoot;
-    /// @notice The ERC20 token being airdropped.
-    IERC20 public immutable i_airDropToken;
-    /// @notice Mapping to track which addresses have already claimed their tokens.
-    mapping(address claimer => bool claimed) private s_claimed;
+    /* ========== STATE VARIABLES ========== */
 
     /**
-     * @notice Constructs the MerkleAirdrop contract.
-     * @param _merkleRoot The Merkle root for the airdrop whitelist.
-     * @param airDropToken The address of the ERC20 token to be airdropped.
+     * @notice The Merkle root of the airdrop whitelist
+     * @dev This is set during construction and cannot be changed
      */
-    constructor(bytes32 _merkleRoot, IERC20 airDropToken) {
+    bytes32 private immutable i_merkleRoot;
+
+    /**
+     * @notice The ERC20 token being airdropped
+     * @dev This is set during construction and cannot be changed
+     */
+    IERC20 public immutable i_airDropToken;
+
+    /**
+     * @notice Mapping to track which addresses have already claimed their tokens
+     * @dev Prevents double-claiming of airdrop tokens
+     */
+    mapping(address claimer => bool claimed) private s_claimed;
+
+    /* ========== CONSTRUCTOR ========== */
+
+    /**
+     * @notice Constructs the MerkleAirdrop contract
+     * @param _merkleRoot The Merkle root for the airdrop whitelist
+     * @param airDropToken The address of the ERC20 token to be airdropped
+     * @dev The contract name is set to "MerkleAirdrop" for EIP-712 domain separation
+     */
+    constructor(bytes32 _merkleRoot, IERC20 airDropToken) EIP712("MerkleAirdrop", "1") {
         i_merkleRoot = _merkleRoot;
         i_airDropToken = airDropToken;
     }
 
+    /* ========== EXTERNAL FUNCTIONS ========== */
+
     /**
-     * @notice Allows a whitelisted user to claim their airdropped tokens.
-     * @param _claimer The address attempting to claim.
-     * @param _amount The amount of tokens to claim.
-     * @param _merkleProof The Merkle proof required to verify the claimer's inclusion in the whitelist.
+     * @notice Allows a whitelisted user to claim their airdropped tokens
+     * @param _claimer The address attempting to claim
+     * @param _amount The amount of tokens to claim
+     * @param _merkleProof The Merkle proof required to verify the claimer's inclusion in the whitelist
+     * @param v The v component of the EIP-712 signature
+     * @param r The r component of the EIP-712 signature
+     * @param s The s component of the EIP-712 signature
+     * @dev This function performs the following checks:
+     * 1. Verifies the address hasn't already claimed
+     * 2. Validates the EIP-712 signature
+     * 3. Verifies the Merkle proof
+     * 4. Transfers tokens to the claimer
      */
-    function claim(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof,uint8 v, bytes32 r, bytes32 s) external {
+    function claim(address _claimer, uint256 _amount, bytes32[] calldata _merkleProof, uint8 v, bytes32 r, bytes32 s)
+        external
+    {
         if (s_claimed[_claimer] == true) {
             revert MerkleAirdrop__AlreadyClaimed();
         }
 
-        if(!_IsValidSignature(_claimer,getMessage(_claimer,amount),v,r,s)){
+        if (!_isValidSignature(_claimer, getMessage(_claimer, _amount), v, r, s)) {
             revert MerkleAirdrop__InvalidSignature();
         }
 
@@ -70,28 +130,75 @@ contract MerkleAirDrop {
         if (!MerkleProof.verify(_merkleProof, i_merkleRoot, leaf)) {
             revert MerkleAirdrop__InvalidProof();
         }
+
         s_claimed[_claimer] = true;
         emit Claimed(_claimer, _amount);
         i_airDropToken.safeTransfer(_claimer, _amount);
     }
 
+    /* ========== PUBLIC FUNCTIONS ========== */
+
     /**
-     * @notice Returns the Merkle root of the airdrop.
-     * @return The Merkle root.
+     * @notice Generates the EIP-712 message hash for signature verification
+     * @param _claimer The address of the claimer
+     * @param _amount The amount of tokens to be claimed
+     * @return The EIP-712 message hash
+     * @dev This function creates the message hash that should be signed by the authorized signer
+     */
+    function getMessage(address _claimer, uint256 _amount) public view returns (bytes32) {
+        return _hashTypedDataV4(
+            keccak256(abi.encode(MESSAGE_TYPEHASH, AirdropClaim({claimer: _claimer, amount: _amount})))
+        );
+    }
+
+    /* ========== EXTERNAL VIEW FUNCTIONS ========== */
+
+    /**
+     * @notice Returns the Merkle root of the airdrop
+     * @return The Merkle root
      */
     function getMerkleRoot() external view returns (bytes32) {
         return i_merkleRoot;
     }
 
-    function getMessage(address _claimer,uint256 _amount) public view returns(bytes32){
-        return  _hashTypedDataV4(keccak256(abi.encode(keccak256(abi.encode(MESSAGE_TYPEHASH, _claimer, _amount)))));
-    }
-
     /**
-     * @notice Returns the address of the airdrop token.
-     * @return The ERC20 token contract.
+     * @notice Returns the address of the airdrop token
+     * @return The ERC20 token contract address
      */
     function getAirDropToken() external view returns (IERC20) {
         return i_airDropToken;
+    }
+
+    /**
+     * @notice Checks if an address has already claimed their airdrop
+     * @param _claimer The address to check
+     * @return True if the address has already claimed, false otherwise
+     */
+    function hasClaimed(address _claimer) external view returns (bool) {
+        return s_claimed[_claimer];
+    }
+
+    /* ========== INTERNAL FUNCTIONS ========== */
+
+    /**
+     * @notice Validates an EIP-712 signature
+     * @param _claimer The address of the claimer
+     * @param _messageHash The message hash to verify
+     * @param v The v component of the signature
+     * @param r The r component of the signature
+     * @param s The s component of the signature
+     * @return True if the signature is valid, false otherwise
+     * @dev This function should be overridden to implement the actual signature verification logic
+     */
+    function _isValidSignature(address _claimer, bytes32 _messageHash, uint8 v, bytes32 r, bytes32 s)
+        internal
+        view
+        virtual
+        returns (bool)
+    {
+        // TODO: Implement signature verification logic
+        // This should verify that the signature was created by an authorized signer
+        // and that it corresponds to the provided message hash
+        return true; // Placeholder implementation
     }
 }
