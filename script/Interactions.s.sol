@@ -7,7 +7,7 @@ import {MerkleAirDrop} from "../src/MerkleAirdrop.sol";
 import {BagelToken} from "../src/BagelToken.sol";
 import {DevOpsTools} from "foundry-devops/src/DevOpsTools.sol";
 
-contract Interactions {
+contract Interactions is Script {
     address claimer = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     uint256 amount = 25 * 1e18;
     bytes32 PROOF_ONE = 0xaa5d581231e596618465a56aa0f5870ba6e20785fe436d5bfb82b08662ccc7c4;
