@@ -10,26 +10,28 @@ import {DevOpsTools} from "foundry-devops/src/DevOpsTools.sol";
 contract Interactions is Script {
     address claimer = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
     uint256 amount = 25 * 1e18;
-    bytes32 PROOF_ONE = 0xaa5d581231e596618465a56aa0f5870ba6e20785fe436d5bfb82b08662ccc7c4;
-    bytes32 PROOF_TWO = 0xd1445c931158119b00449ffcac3c947d028c0c359c34a6646d95962b3b55c6ad;
+    bytes32 PROOF_ONE = 0xd1445c931158119b00449ffcac3c947d028c0c359c34a6646d95962b3b55c6ad;
+    bytes32 PROOF_TWO = 0xe5ebd1e1b5a5478a944ecab36a9a954ac3b6b8216875f6524caa7a1d87096576;
     bytes32[] PROOF = [PROOF_ONE, PROOF_TWO];
     bytes private SIGNATURE =
-        hex"95c2de964f19cf64387aea722325372489d657047757553f69cf5663d1b288f15abd72033ae8668c6f34ad1325a09226ad7e699a75f4f09e515518412eadf5e91c";
+        hex"d9acab234b1230c3053ba3a3af112668bed4a7013183bb1ea5dff3860f0965ba0efc682bb1abf58dd6322d6753eab8a4a5da69e88a75721796aab9d69658ee301c";
+
+    error InteractionsScript__InvalidSignatureLength();
 
     function run() external {
         address mostRecentlyDeployedMerkleAirdrop =
-            DevOpsTools.get_most_recent_deployment("MerkleAirdrop", block.chainid);
+            DevOpsTools.get_most_recent_deployment("MerkleAirDrop", block.chainid);
         claimAirdrop(mostRecentlyDeployedMerkleAirdrop);
     }
 
-    function splitSignature(bytes memory sig) public returns (uint8, bytes32, bytes32) {
+    function splitSignature(bytes memory sig) public pure returns (uint8 v, bytes32 r, bytes32 s) {
         if (sig.length != 65) {
             revert InteractionsScript__InvalidSignatureLength();
         }
         assembly {
             r := mload(add(sig, 32))
             s := mload(add(sig, 64))
-            v := byte(0, mload(add(sig, 65)))
+            v := byte(0, mload(add(sig, 96)))
         }
         return (v, r, s);
     }
@@ -38,7 +40,7 @@ contract Interactions is Script {
         vm.startBroadcast();
         (uint8 v, bytes32 r, bytes32 s) = splitSignature(SIGNATURE);
         MerkleAirDrop(_merkleAirdrop).claim(
-            MerkleAirDrop.ClaimParams({claimer: claimer, amount: amount, merkleProof: PROOF, v: 0, r: 0, s: 0})
+            MerkleAirDrop.ClaimParams({claimer: claimer, amount: amount, merkleProof: PROOF, v: v, r: r, s: s})
         );
         vm.stopBroadcast();
     }
