@@ -6,7 +6,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title BagelToken
- * @author okhamena azeez
+ * @author Okhamena Azeez
  * @notice This contract implements a basic ERC20 token with minting capabilities
  * @dev Extends OpenZeppelin's ERC20 and Ownable contracts
  */
