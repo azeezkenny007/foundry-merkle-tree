@@ -5,14 +5,46 @@ import {Script} from "forge-std/Script.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 import {console} from "forge-std/console.sol";
 
-// Merkle tree input file generator script
+/**
+ * @title GenerateInput
+ * @author Okhamena Azeez
+ * @notice Generates JSON input file for merkle tree creation with predefined whitelist addresses
+ * @dev This script creates a properly formatted JSON file that can be consumed by MakeMerkle.s.sol
+ *      to generate merkle proofs. The JSON contains address-amount pairs for eligible airdrop recipients.
+ */
 contract GenerateInput is Script {
+    /**
+     * @notice The standard airdrop amount per eligible address (25 tokens with 18 decimals)
+     */
     uint256 private constant AMOUNT = 25 * 1e18;
+    
+    /**
+     * @notice Array defining the data types for merkle tree leaf nodes
+     * @dev First element is "address", second is "uint" representing the token amount
+     */
     string[] types = new string[](2);
+    
+    /**
+     * @notice Counter for the number of whitelisted addresses
+     */
     uint256 count;
+    
+    /**
+     * @notice Array of whitelisted addresses eligible for the airdrop
+     * @dev These addresses will be included in the merkle tree generation
+     */
     string[] whitelist = new string[](4);
+    
+    /**
+     * @notice The file path where the JSON input will be written
+     */
     string private constant INPUT_PATH = "/script/target/input.json";
 
+    /**
+     * @notice Main execution function that generates the JSON input file
+     * @dev Initializes the whitelist with predefined addresses and creates a JSON file
+     *      containing all necessary data for merkle tree generation
+     */
     function run() public {
         types[0] = "address";
         types[1] = "uint";
@@ -28,6 +60,14 @@ contract GenerateInput is Script {
         console.log("DONE: The output is found at %s", INPUT_PATH);
     }
 
+    /**
+     * @notice Creates a properly formatted JSON string for merkle tree input
+     * @dev Constructs a JSON object containing:
+     *      - types: Array of data types for each merkle leaf
+     *      - count: Number of entries in the whitelist
+     *      - values: Object mapping indices to address-amount pairs
+     * @return A JSON string ready for file output and merkle tree generation
+     */
     function _createJSON() internal view returns (string memory) {
         string memory countString = vm.toString(count); // convert count to string
         string memory amountString = vm.toString(AMOUNT); // convert amount to string
