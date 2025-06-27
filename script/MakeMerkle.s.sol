@@ -7,48 +7,101 @@ import {console} from "forge-std/console.sol";
 import {Merkle} from "murky/src/Merkle.sol";
 import {ScriptHelper} from "murky/script/common/ScriptHelper.sol";
 
-// Merkle proof generator script
-// To use:
-// 1. Run `forge script script/GenerateInput.s.sol` to generate the input file
-// 2. Run `forge script script/Merkle.s.sol`
-// 3. The output file will be generated in /script/target/output.json
-
 /**
  * @title MakeMerkle
- * @author Ciara Nightingale
- * @author Cyfrin
- *
- * Original Work by:
+ * @author Okhamena Azeez
+ * @notice A Foundry script that generates Merkle proofs and trees for airdrop verification
+ * @dev To use this script:
+ *      1. Run `forge script script/GenerateInput.s.sol` to generate the input file
+ *      2. Run `forge script script/MakeMerkle.s.sol`
+ *      3. The output file will be generated in /script/target/output.json
+ * 
+ * Original Work inspired by:
  * @author kootsZhin
  * @notice https://github.com/dmfxyz/murky
  */
 contract MakeMerkle is Script, ScriptHelper {
     using stdJson for string; // enables us to use the json cheatcodes for strings
 
-    Merkle private m = new Merkle(); // instance of the merkle contract from Murky to do shit
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Instance of the Merkle contract from Murky library
+     * @dev Used for generating Merkle trees and proofs
+     */
+    Merkle private m = new Merkle();
+
+    /**
+     * @notice Path to the input JSON file containing whitelist data
+     */
     string private inputPath = "/script/target/input.json";
+    
+    /**
+     * @notice Path where the output JSON file will be generated
+     */
     string private outputPath = "/script/target/output.json";
 
-    string private elements = vm.readFile(string.concat(vm.projectRoot(), inputPath)); // get the absolute path
-    string[] private types = elements.readStringArray(".types"); // gets the merkle tree leaf types from json using forge standard lib cheatcode
-    uint256 private count = elements.readUint(".count"); // get the number of leaf nodes
+    /**
+     * @notice Raw JSON content read from the input file
+     */
+    string private elements = vm.readFile(string.concat(vm.projectRoot(), inputPath));
+    
+    /**
+     * @notice Array of data types for Merkle tree leaves (from JSON)
+     */
+    string[] private types = elements.readStringArray(".types");
+    
+    /**
+     * @notice Number of leaf nodes in the Merkle tree
+     */
+    uint256 private count = elements.readUint(".count");
 
-    // make three arrays the same size as the number of leaf nodes
+    /**
+     * @notice Array to store the computed leaf hashes
+     */
     bytes32[] private leafs = new bytes32[](count);
 
+    /**
+     * @notice Array to store stringified input data for each leaf
+     */
     string[] private inputs = new string[](count);
+    
+    /**
+     * @notice Array to store the final JSON output for each proof
+     */
     string[] private outputs = new string[](count);
 
+    /**
+     * @notice Final concatenated output string
+     */
     string private output;
 
-    /// @dev Returns the JSON path of the input file
-    // output file output ".values.some-address.some-amount"
+    /*//////////////////////////////////////////////////////////////
+                            INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Constructs the JSON path for accessing values by index
+     * @dev Returns the path ".values.{i}.{j}" for accessing nested JSON values
+     * @param i The outer index (leaf node index)
+     * @param j The inner index (field index within the leaf)
+     * @return The constructed JSON path string
+     */
     function getValuesByIndex(uint256 i, uint256 j) internal pure returns (string memory) {
         return string.concat(".values.", vm.toString(i), ".", vm.toString(j));
     }
 
-    /// @dev Generate the JSON entries for the output file
+    /**
+     * @notice Generates JSON entries for the output file
+     * @dev Creates a structured JSON object containing inputs, proof, root, and leaf data
+     * @param _inputs Stringified input data for the leaf
+     * @param _proof Stringified Merkle proof array
+     * @param _root Stringified Merkle root hash
+     * @param _leaf Stringified leaf hash
+     * @return Formatted JSON string for the entry
+     */
     function generateJsonEntries(string memory _inputs, string memory _proof, string memory _root, string memory _leaf)
         internal
         pure
@@ -74,7 +127,14 @@ contract MakeMerkle is Script, ScriptHelper {
         return result;
     }
 
-    /// @dev Read the input file and generate the Merkle proof, then write the output file
+    /*//////////////////////////////////////////////////////////////
+                            PUBLIC FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Main execution function that reads input, generates Merkle proofs, and writes output
+     * @dev Processes each whitelist entry, creates leaf hashes, generates proofs, and outputs JSON
+     */
     function run() public {
         console.log("Generating Merkle Proof for %s", inputPath);
 
