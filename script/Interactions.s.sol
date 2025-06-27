@@ -7,23 +7,85 @@ import {MerkleAirDrop} from "../src/MerkleAirdrop.sol";
 import {BagelToken} from "../src/BagelToken.sol";
 import {DevOpsTools} from "foundry-devops/src/DevOpsTools.sol";
 
+/**
+ * @title Interactions
+ * @author Okhamena Azeez
+ * @notice A Foundry script for interacting with deployed MerkleAirDrop contracts
+ * @dev Provides functionality to claim airdrops using Merkle proofs and signatures
+ */
 contract Interactions is Script {
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
+    
+    /**
+     * @notice The address that will claim the airdrop tokens
+     */
     address claimer = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+    
+    /**
+     * @notice The amount of tokens to claim in the airdrop
+     * @dev Set to 25 tokens with 18 decimal places
+     */
     uint256 amount = 25 * 1e18;
+    
+    /**
+     * @notice First proof element for the Merkle proof
+     */
     bytes32 PROOF_ONE = 0xd1445c931158119b00449ffcac3c947d028c0c359c34a6646d95962b3b55c6ad;
+    
+    /**
+     * @notice Second proof element for the Merkle proof
+     */
     bytes32 PROOF_TWO = 0xe5ebd1e1b5a5478a944ecab36a9a954ac3b6b8216875f6524caa7a1d87096576;
+    
+    /**
+     * @notice Complete Merkle proof array for claiming the airdrop
+     */
     bytes32[] PROOF = [PROOF_ONE, PROOF_TWO];
+    
+    /**
+     * @notice Pre-signed signature for the airdrop claim
+     * @dev This signature authorizes the claim transaction
+     */
     bytes private SIGNATURE =
         hex"d9acab234b1230c3053ba3a3af112668bed4a7013183bb1ea5dff3860f0965ba0efc682bb1abf58dd6322d6753eab8a4a5da69e88a75721796aab9d69658ee301c";
 
+    /*//////////////////////////////////////////////////////////////
+                               ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Thrown when the signature length is not exactly 65 bytes
+     */
     error InteractionsScript__InvalidSignatureLength();
 
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Main execution function for the interaction script
+     * @dev Finds the most recently deployed MerkleAirDrop and claims from it
+     */
     function run() external {
         address mostRecentlyDeployedMerkleAirdrop =
             DevOpsTools.get_most_recent_deployment("MerkleAirDrop", block.chainid);
         claimAirdrop(mostRecentlyDeployedMerkleAirdrop);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            PUBLIC FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Splits an ECDSA signature into its v, r, s components
+     * @dev Uses inline assembly for efficient byte manipulation
+     * @param sig The signature bytes to split (must be 65 bytes)
+     * @return v The recovery id (1 byte)
+     * @return r The first 32 bytes of the signature
+     * @return s The second 32 bytes of the signature
+     */
     function splitSignature(bytes memory sig) public pure returns (uint8 v, bytes32 r, bytes32 s) {
         if (sig.length != 65) {
             revert InteractionsScript__InvalidSignatureLength();
@@ -36,6 +98,11 @@ contract Interactions is Script {
         return (v, r, s);
     }
 
+    /**
+     * @notice Claims airdrop tokens from the specified MerkleAirDrop contract
+     * @dev Splits the stored signature and calls the claim function with all required parameters
+     * @param _merkleAirdrop The address of the MerkleAirDrop contract to claim from
+     */
     function claimAirdrop(address _merkleAirdrop) public {
         vm.startBroadcast();
         (uint8 v, bytes32 r, bytes32 s) = splitSignature(SIGNATURE);
