@@ -14,6 +14,7 @@ contract BagelToken is ERC20, Ownable {
     /**
      * @notice Contract constructor that initializes the token with name "BagelToken" and symbol "BGL"
      */
+     
     constructor() ERC20("BagelToken", "BGL") Ownable(msg.sender) {}
 
     /**
