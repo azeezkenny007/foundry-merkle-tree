@@ -2,15 +2,14 @@
 pragma solidity ^0.8.24;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 
-  * @title BagelToken
+/**
+ * @title BagelToken
  * @author Okhamena Azeez
  * @notice This contract implements a basic ERC20 token with minting capabilities
- * @dev Extends OpenZeppelin's ERC20 and Ownable contracts
- */
+ * @dev Extends OpenZeppelin's ERC20 and Ownable contracts */
 contract BagelToken is ERC20, Ownable {
     /**
      * @notice Contract constructor that initializes the token with name "BagelToken" and symbol "BGL"
