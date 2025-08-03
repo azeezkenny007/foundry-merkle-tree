@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import {Test, console} from "forge-std/Test.sol";
-import {MerkleAirDrop} from "../src/MerkleAirDrop.sol";
+import {MerkleAirDrop} from "../src/MerkleAirdrop.sol";
 import {BagelToken} from "../src/BagelToken.sol";
 import {ZkSyncChainChecker} from "foundry-devops/src/ZkSyncChainChecker.sol";
 import {DeployMerkleAirDrop} from "../script/DeployMerkleAirdrop.s.sol";

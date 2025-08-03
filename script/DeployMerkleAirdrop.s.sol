@@ -1,7 +1,7 @@
 //SPDX-License-Identifier:MIT
 pragma solidity ^0.8.24;
 
-import {MerkleAirDrop,IERC20} from "../src/MerkleAirDrop.sol"; // Fixed case in file name
+import {MerkleAirDrop,IERC20} from "../src/MerkleAirdrop.sol"; // Fixed case in file name
 import {Script} from "forge-std/Script.sol";
 import {BagelToken} from "../src/BagelToken.sol";
 import {ZkSyncChainChecker} from "lib/foundry-devops/src/ZkSyncChainChecker.sol";
