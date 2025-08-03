@@ -17,6 +17,7 @@ contract DeployMerkleAirDrop is Script {
     /**
      * @notice The merkle root hash for validating airdrop claims
      * @dev This root is calculated from all eligible addresses and their claim amounts
+     
      */
     bytes32 public MERKLE_ROOT = bytes32(0xaa5d581231e596618465a56aa0f5870ba6e20785fe436d5bfb82b08662ccc7c4);
     
